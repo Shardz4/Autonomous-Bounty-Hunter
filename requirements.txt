@@ -1,0 +1,5 @@
+﻿streamlit
+docker
+requests
+python-dotenv
+faker
