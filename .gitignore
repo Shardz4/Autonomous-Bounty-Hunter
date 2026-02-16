@@ -1,0 +1,23 @@
+# Security & Config
+.env
+*.pem
+*.key
+.credentials/
+
+# Sensitive Docs (optional - decide if you want)
+# SECURITY_ANALYSIS.md
+# DEMO_EXPLOITS.py
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+cortensor_audit.log

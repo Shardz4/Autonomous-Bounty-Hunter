@@ -1,17 +1,26 @@
 ﻿import uuid
 import time
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class X402Merchant:
     def __init__(self):
         # In production, this would connect to an L402/Lightning node
         self.active_invoices = {}
+        # Load x402 gateway URL from environment, with fallback
+        self.gateway_url = os.getenv(
+            "X402_GATEWAY_URL", 
+            "https://x402.pay/invoice"  # Real x402 service or your local gateway
+        )
 
     def create_locked_content(self, content, price_usdc=5.00):
         """
         Gates content behind a payment request.
         """
         invoice_id = str(uuid.uuid4())[:8]
-        payment_link = f"https://x402.cortensor.network/pay/{invoice_id}?amount={price_usdc}"
+        payment_link = f"{self.gateway_url}/{invoice_id}?amount={price_usdc}"
 
         # Store the content securely
         self.active_invoices[invoice_id] = {

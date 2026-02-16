@@ -34,7 +34,16 @@ issue_url = st.text_input("Enter GitHub Issue URL", "https://github.com/cortenso
 run_btn = st.button("🔫 Start Bounty Hunt", type="primary")
 
 if run_btn:
-    agent = AgentCoordinator()
+    # Validate URL
+    if not issue_url or not issue_url.startswith("https://github.com/"):
+        st.error("❌ Please enter a valid GitHub issue URL (must start with https://github.com/)")
+        st.stop()
+    
+    try:
+        agent = AgentCoordinator()
+    except RuntimeError as e:
+        st.error(f"❌ Failed to initialize agent: {str(e)}")
+        st.stop()
 
     # UI Containers
     status_box = st.empty()
@@ -72,12 +81,7 @@ if run_btn:
                         <h3>Payment Required</h3>
                         <p>To unlock the source code, please settle the invoice.</p>
                         <h1>5.00 USDC</h1>
-                        <a href="{data['payment_link']}" target="_blank">
-                            <button style="background-color:#FF4B4B;color:white;padding:10px 20px;border:none;border-radius:5px;cursor:pointer;">
-                                Pay via x402
-                            </button>
-                        </a>
-                        <br><br>
                         <small>Invoice ID: {data['invoice_id']}</small>
                     </div>
                     """, unsafe_allow_html=True)
+                    st.link_button("🔗 Pay via x402", data['payment_link'], use_container_width=True)

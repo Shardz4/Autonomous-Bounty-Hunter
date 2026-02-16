@@ -13,50 +13,62 @@ class AgentCoordinator:
         self.sandbox.build_image()
 
     def solve_issue(self, issue_url):
-        yield "event", "🔍 **Analyzing Issue:** " + issue_url
+        try:
+            yield "event", "🔍 **Analyzing Issue:** " + issue_url
 
-        # 1. DELEGATE
-        yield "event", "📡 **Delegating to Cortensor:** Requesting 3 redundant solutions..."
-        candidates = self.network.request_patches(issue_url, redundancy=3)
+            # 1. DELEGATE
+            yield "event", "📡 **Delegating to Cortensor:** Requesting 3 redundant solutions..."
+            candidates = self.network.request_patches(issue_url, redundancy=3)
+            
+            if not candidates:
+                yield "error", "❌ No solutions received from Cortensor network."
+                return
 
-        # 2. VERIFY
-        yield "event", "🛡️ **Starting Verification:** Spinning up Docker Sandbox..."
+            # 2. VERIFY
+            yield "event", "🛡️ **Starting Verification:** Spinning up Docker Sandbox..."
 
-        mock_test_suite = """
+            mock_test_suite = """
 import pytest
 from solution import fix_issue
 def test_fix():
     assert fix_issue([3,1,2]) == [1,2,3]
     assert fix_issue([]) == []
-        """
+            """
 
-        verified_winner = None
-        logs = []
+            verified_winner = None
+            logs = []
 
-        for cand in candidates:
-            yield "event", f"Testing Patch from **{cand['miner_id']}**..."
-            result = self.sandbox.run_verification(cand['code'], mock_test_suite)
+            for cand in candidates:
+                try:
+                    yield "event", f"Testing Patch from **{cand['miner_id']}**..."
+                    result = self.sandbox.run_verification(cand['code'], mock_test_suite)
 
-            logs.append(f"Miner: {cand['miner_id']}\nResult: {'PASS' if result['success'] else 'FAIL'}\nLogs: {result['logs']}\n---")
+                    logs.append(f"Miner: {cand['miner_id']}\nResult: {'PASS' if result['success'] else 'FAIL'}\nLogs: {result['logs']}\n---")
 
-            if result['success']:
-                verified_winner = cand
-                # We don't break immediately; we want to see if others pass too (consensus)
+                    if result['success']:
+                        verified_winner = cand
+                        # We don't break immediately; we want to see if others pass too (consensus)
+                except Exception as e:
+                    yield "error", f"⚠️ Error testing {cand.get('miner_id', 'Unknown')}: {str(e)}"
+                    continue
 
-        if not verified_winner:
-            yield "error", "❌ No consensus reached. All patches failed verification."
-            return
+            if not verified_winner:
+                yield "error", "❌ No consensus reached. All patches failed verification."
+                return
 
-        # 3. MONETIZE (x402)
-        yield "event", f"🏆 **Winner Found:** {verified_winner['miner_id']}. Creating x402 Lock..."
+            # 3. MONETIZE (x402)
+            yield "event", f"🏆 **Winner Found:** {verified_winner['miner_id']}. Creating x402 Lock..."
 
-        lock_data = self.merchant.create_locked_content(verified_winner['code'])
+            lock_data = self.merchant.create_locked_content(verified_winner['code'])
 
-        final_bundle = {
-            "winner": verified_winner['miner_id'],
-            "verification_logs": "\n".join(logs),
-            "payment_link": lock_data['payment_link'],
-            "invoice_id": lock_data['invoice_id']
-        }
+            final_bundle = {
+                "winner": verified_winner['miner_id'],
+                "verification_logs": "\n".join(logs),
+                "payment_link": lock_data['payment_link'],
+                "invoice_id": lock_data['invoice_id']
+            }
 
-        yield "complete", final_bundle
+            yield "complete", final_bundle
+        
+        except Exception as e:
+            yield "error", f"❌ Unexpected error in workflow: {str(e)}"
